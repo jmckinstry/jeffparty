@@ -1,1 +1,43 @@
-/var/www/html/non_wp/jeff.html
+<html>
+<head>
+	<title>Jeopardy Do-It-Yourself Calculator</title>
+</head>
+
+<body>
+<table id='header' class='header'>
+	<h2>Jeopardy Do-It-Yourself Calculator</h2>
+</table>
+
+<hr />
+
+<table id='body' class='body'>
+<tr><td><div id='body_left' /></td>
+<td><div id='body_left_second' /></td>
+<td><div id='body_middle' /></td>
+<td><div id='body_right' /><td></tr>
+</table>
+
+<hr />
+
+<table id='footer' class='footer'>
+</table>
+
+<script src='jeff.js' /></script>
+<script src='jeff_multi.js' /></script>
+<script>
+// Courtesy of T.Todua: https://stackoverflow.com/questions/11936816/execute-function-after-complete-page-load
+document.addEventListener('readystatechange', event => { 
+    // When HTML/DOM elements are ready:
+    if (event.target.readyState === "interactive") {
+    }
+    // When window loaded ( external resources are loaded too- `css`,`src`, etc...) 
+    if (event.target.readyState === "complete") {
+		f_build_page()
+    }
+})
+</script>
+
+</body>
+
+</html>
+
