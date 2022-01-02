@@ -28,6 +28,10 @@ function f_multi_message(msg, s = {max:20, type:'normal'}) {
 			new_line.innerText = msg
 			break
 			
+		case 'summary':
+			new_line.innerHTML = msg
+			break
+			
 		default:
 			new_line.innerText = msg
 			break
@@ -41,7 +45,7 @@ function f_make_message(type, data) {
 	return JSON.stringify(d)
 }
 function f_sanitize_chat(msg) {
-	return msg.replace(/[^0-9a-zA-Z\.\-\_\(\)\,\*\ \\\"\/\:\[\{\]\}]/g, '*')
+	return msg.replace(/[^0-9a-zA-Z\.\-\_\(\)\,\*\ \\\"\/\:\[\{\]\}\%\$]/g, '*')
 }
 function f_websocket_send(type, data) {
 	if (!(multiplayer_connection && multiplayer_connection.readyState == WebSocket.OPEN)) {
@@ -54,16 +58,35 @@ function f_websocket_send(type, data) {
 		f_make_message(type, data)
 	)
 }
+var pingID
 function f_websocket_handle_open(event) {
+	multiplayer_connection.onmessage = 	f_websocket_handle_message
+	multiplayer_connection.onclose = 	f_websocket_handle_close
+	
 	data = {
 		name:f_sanitize_chat(element_text_multiplayer_name.value),
 		lobby:f_sanitize_chat(element_text_multiplayer_lobby.value)
 	}
 
 	f_websocket_send('connect', data)
+	pingID = setInterval(f_websocket_send_ping, 45000)
+}
+function f_websocket_send_ping() {
+	f_websocket_send('ping')
+}
+function f_websocket_submit_answer(answer) {
+	f_websocket_send('answer', answer)
 }
 function f_websocket_handle_error(event) {
-	f_multi_message("WebSocket error: " + event)
+	f_multi_message("WebSocket error: The multiplayer server probably isn't running.", {type: "error"})
+	// TODO: This is a terrible hack. Change it so that when the page loads, a timer tries to connect to the WS server every x seconds, enabling multiplayer UI when it is up
+	if (multiplayer_connection) {
+		multiplayer_connection.close()
+		multiplayer_connection = null
+	}
+	f_multi_set_enabled(false)
+	
+	console.log(event)
 }
 function f_websocket_handle_message(event) {	
 	//var msg = JSON.parse(event.data).toString('utf-8')
@@ -103,6 +126,20 @@ function f_websocket_handle_message(event) {
 				+ " for $" + msg.data.amount
 			)
 			break
+		
+		case 'summary':
+			function f_get_html_answers_data(type, data) {
+				return "<tr><td>" + type + ":</td><td>"
+					+ data.correct + "/" + data.given
+					+ "</td><td>" + data.percent
+					+ "</td><td>" + data.total + "</td></tr>"
+			}
+			f_multi_message(msg.data.name + "'s totals:<table border='1px solid black'>"
+				+ (msg.data.answers.given ? f_get_html_answers_data("Official", msg.data.answers) : "")
+				+ (msg.data.guesses.given-msg.data.answers.given ? f_get_html_answers_data("With Guesses", msg.data.guesses) : ""),
+				{type:'summary'}
+			)
+			break
 			
 		case 'chat':
 			f_multi_message(msg.data.name + " says: " + f_sanitize_chat(msg.data.message))
@@ -111,6 +148,10 @@ function f_websocket_handle_message(event) {
 		case 'exit':
 			f_multi_message(d.data.message || "Server has shut down.", {type:'error'})
 			multiplayer_connection && multiplayer_connection.close()
+			break
+			
+		case 'ping':
+			console.log('keepalive ping on websocket')
 			break
 		
 		default:
@@ -121,6 +162,9 @@ function f_websocket_handle_message(event) {
 function f_websocket_handle_close(event) {
 	multiplayer_connection = null
 	f_multi_set_enabled(false)
+	clearInterval(pingID)
+	
+	f_multi_message(d.data.message || "Server connection lost.", {type:'error'})
 }
 function f_button_multiplayer_connect() {
 	element_button_connect.disabled = true
@@ -131,8 +175,6 @@ function f_button_multiplayer_connect() {
 		if (multiplayer_connection) {
 			multiplayer_connection.onopen = 	f_websocket_handle_open
 			multiplayer_connection.onerror = 	f_websocket_handle_error
-			multiplayer_connection.onmessage = 	f_websocket_handle_message
-			multiplayer_connection.onclose = 	f_websocket_handle_close
 		}
 	}
 	catch (e) {

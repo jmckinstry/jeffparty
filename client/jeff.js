@@ -114,9 +114,11 @@ function f_build_page() {
 		+ "<tr><td>Answers Given w/Guesses</td><td id='body_footer_answers_given_guesses'></td></tr>"
 		+ "<tr><td>Answers Correct w/Guesses</td><td id='body_footer_answers_correct_guesses'></td><td id='body_footer_answer_percentages_with_guesses'></td></tr>"
 		+ "<tr><td>Running Total w/Guesses</td><td id='body_footer_running_total_guesses'></td></tr>"
-		+ "</tr></table>"
 		
-		+ "<div class='right-align'>" + f_make_input_button('reset', 'reset', "!!!RESET!!!") + "</div>"
+		+ "<tr><td>" + f_make_input_button('share', 'share', 'Share Totals') + "</td>"
+			+ "<td /><td>" + f_make_input_button('reset', 'reset', "!!!RESET!!!") + "</div></td></tr>"
+		+ "</table>"
+		
 	
 	// Hook up our io elements
 	element_checkbox_for_real = document.getElementById('real_guess')
@@ -171,6 +173,13 @@ function f_handle_guess(guess_was_right, real_guess, amount) {
 	// Percentages update
 	element_text_answer_percentages.innerText = (element_text_answers_correct.innerText*100 / element_text_answers_given.innerText).toFixed(2) + "%"
 	element_text_answer_percentages_with_guesses.innerText = (element_text_answers_correct_with_guesses.innerText*100 / element_text_answers_given_with_guesses.innerText).toFixed(2) + "%"
+	
+	f_websocket_submit_answer({
+		name:element_text_multiplayer_name.value,
+		guessed:!real_guess,
+		right:guess_was_right,
+		amount:Math.abs(amount),
+	})
 }
 
 // UI Functions
@@ -185,8 +194,28 @@ function f_button_daily_double_clicked() {
 function f_button_answered(got_it) {
 	f_handle_guess(got_it, element_checkbox_for_real.checked, f_money_to_int(element_text_current_value.innerText))
 }
+function f_button_share() {
+	if (element_text_answers_given_with_guesses.innerText > 0) {
+		data = {
+			name:element_text_multiplayer_name.value,
+			answers: {
+				given:element_text_answers_given.innerText,
+				correct:element_text_answers_correct.innerText,
+				total:element_text_running_total.innerText,
+				percent:element_text_answer_percentages.innerText
+			},
+			guesses: {
+				given:element_text_answers_given_with_guesses.innerText,
+				correct:element_text_answers_correct_with_guesses.innerText,
+				total:element_text_running_total_with_guesses.innerText,
+				percent:element_text_answer_percentages_with_guesses.innerText
+			},
+		}
+		f_websocket_send('summary', data)
+}
 function f_button_reset() {
 	if (window.confirm("Are you sure you want to reset everything?")) {
-		f_reset_all_values()
+			f_reset_all_values()
+		}
 	}
 }
